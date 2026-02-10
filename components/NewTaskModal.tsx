@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import { Task, TaskStatus, Priority, User } from '../types';
 import { useProject } from '../context/ProjectContext';
 import { Button } from './Button';
-import { generateSubtasks } from '../services/geminiService';
-import { Sparkles, X, Calendar, FileText, LayoutTemplate } from 'lucide-react';
+import { generateSubtasks, draftNotificationEmail } from '../services/geminiService';
+import { Sparkles, X, Calendar, FileText, LayoutTemplate, Mail } from 'lucide-react';
 
 interface NewTaskModalProps {
   isOpen: boolean;
@@ -14,7 +14,7 @@ interface NewTaskModalProps {
 }
 
 export const NewTaskModal: React.FC<NewTaskModalProps> = ({ isOpen, onClose, onSave, users, existingTasks = [] }) => {
-  const { taskTemplates } = useProject();
+  const { taskTemplates, currentUser } = useProject();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [assigneeId, setAssigneeId] = useState('');
@@ -24,6 +24,9 @@ export const NewTaskModal: React.FC<NewTaskModalProps> = ({ isOpen, onClose, onS
   const [subtasks, setSubtasks] = useState<{title: string, completed: boolean}[]>([]);
   const [selectedDependencies, setSelectedDependencies] = useState<string[]>([]);
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
+  
+  const [notifyAssignee, setNotifyAssignee] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   if (!isOpen) return null;
 
@@ -55,9 +58,12 @@ export const NewTaskModal: React.FC<NewTaskModalProps> = ({ isOpen, onClose, onS
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onSave({
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+
+    const newTask = {
       title,
       description,
       status: TaskStatus.TODO,
@@ -68,8 +74,27 @@ export const NewTaskModal: React.FC<NewTaskModalProps> = ({ isOpen, onClose, onS
       dependencies: selectedDependencies,
       order: 0, // Default order, will be recalculated by parent
       comments: []
-    });
+    };
+
+    // Notification Logic
+    if (assigneeId && notifyAssignee && currentUser) {
+      const assignee = users.find(u => u.id === assigneeId);
+      if (assignee) {
+        try {
+          // Use a temp ID for draft generation
+          const draft = await draftNotificationEmail({ ...newTask, id: 'temp-id' } as Task, assignee, currentUser);
+          const mailtoLink = `mailto:${assignee.email}?subject=${encodeURIComponent(draft.subject)}&body=${encodeURIComponent(draft.body)}`;
+          // Open mail client
+          window.location.href = mailtoLink;
+        } catch (error) {
+          console.error("Failed to draft email notification:", error);
+        }
+      }
+    }
+
+    onSave(newTask);
     onClose();
+    
     // Reset form
     setTitle('');
     setDescription('');
@@ -79,6 +104,7 @@ export const NewTaskModal: React.FC<NewTaskModalProps> = ({ isOpen, onClose, onS
     setSubtasks([]);
     setSelectedDependencies([]);
     setSelectedTemplateId('');
+    setIsSubmitting(false);
   };
 
   return (
@@ -149,6 +175,20 @@ export const NewTaskModal: React.FC<NewTaskModalProps> = ({ isOpen, onClose, onS
                   <option key={u.id} value={u.id}>{u.name}</option>
                 ))}
               </select>
+              {assigneeId && (
+                <label className="flex items-center gap-2 mt-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={notifyAssignee}
+                    onChange={(e) => setNotifyAssignee(e.target.checked)}
+                    className="rounded border-gray-300 text-blue-900 focus:ring-blue-900 w-4 h-4"
+                  />
+                  <span className="text-xs text-gray-600 flex items-center gap-1">
+                    <Mail className="w-3 h-3" />
+                    Notify via email
+                  </span>
+                </label>
+              )}
             </div>
 
             <div className="sm:col-span-2">
@@ -239,7 +279,7 @@ export const NewTaskModal: React.FC<NewTaskModalProps> = ({ isOpen, onClose, onS
 
           <div className="flex justify-end gap-3 pt-4 border-t border-white/40">
             <Button type="button" variant="secondary" onClick={onClose} className="bg-white/50 border-white/60 hover:bg-white/80">Cancel</Button>
-            <Button type="submit">Create Task</Button>
+            <Button type="submit" isLoading={isSubmitting}>Create Task</Button>
           </div>
         </form>
       </div>

@@ -2,10 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useProject } from '../context/ProjectContext';
 import { Task, TaskStatus, Priority, User, SubTask, Comment } from '../types';
 import { Button } from './Button';
+import { draftNotificationEmail } from '../services/geminiService';
 import { 
   X, Calendar, User as UserIcon, CheckSquare, Plus, Trash2, Link, 
   CheckCheck, CheckCircle2, Lock, Send, MessageSquare, AlignLeft, 
-  ListTodo, Layers, Copy, Save
+  ListTodo, Layers, Copy, Save, Mail
 } from 'lucide-react';
 
 interface TaskDetailsModalProps {
@@ -34,6 +35,8 @@ export const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({
   const [showTemplateSuccess, setShowTemplateSuccess] = useState(false);
   const [isSavingTemplate, setIsSavingTemplate] = useState(false);
   const [templateName, setTemplateName] = useState('');
+  const [toggledSubtaskId, setToggledSubtaskId] = useState<string | null>(null);
+  const [isSendingEmail, setIsSendingEmail] = useState(false);
 
   useEffect(() => {
     if (task) {
@@ -50,6 +53,11 @@ export const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({
 
   const handleSubtaskToggle = (subtaskId: string) => {
     if (!editedTask) return;
+    
+    // Trigger animation
+    setToggledSubtaskId(subtaskId);
+    setTimeout(() => setToggledSubtaskId(null), 300);
+
     const updatedSubtasks = editedTask.subtasks.map(st => 
       st.id === subtaskId ? { ...st, completed: !st.completed } : st
     );
@@ -133,6 +141,22 @@ export const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({
     }
   };
 
+  const handleNotifyAssignee = async () => {
+    if (!editedTask || !editedTask.assigneeId || !currentUser) return;
+    const assignee = users.find(u => u.id === editedTask.assigneeId);
+    if (!assignee) return;
+
+    setIsSendingEmail(true);
+    try {
+        const draft = await draftNotificationEmail(editedTask, assignee, currentUser);
+        window.location.href = `mailto:${assignee.email}?subject=${encodeURIComponent(draft.subject)}&body=${encodeURIComponent(draft.body)}`;
+    } catch (e) {
+        console.error(e);
+    } finally {
+        setIsSendingEmail(false);
+    }
+  };
+
   // Styles injected for animations
   const animationStyles = `
     @keyframes slideIn {
@@ -142,6 +166,11 @@ export const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({
     @keyframes fadeInScale {
       from { opacity: 0; transform: scale(0.95); }
       to { opacity: 1; transform: scale(1); }
+    }
+    @keyframes subtaskPulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.02); background-color: rgba(0, 40, 85, 0.05); }
+      100% { transform: scale(1); }
     }
   `;
 
@@ -242,18 +271,34 @@ export const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({
              </div>
              <div className="flex flex-col min-w-[180px]">
                <label className="text-[10px] uppercase tracking-wider font-bold text-gray-500 mb-1">Assignee</label>
-               <div className="relative">
-                 <UserIcon className="absolute left-2 top-2 h-3.5 w-3.5 text-gray-400" />
-                 <select
-                    value={editedTask.assigneeId || ''}
-                    onChange={(e) => handleChange('assigneeId', e.target.value)}
-                    className="block w-full pl-8 rounded-lg border-gray-200 shadow-sm focus:border-blue-900 focus:ring-blue-900 text-sm py-1.5 bg-white/60"
-                  >
-                    <option value="">Unassigned</option>
-                    {users.map(u => (
-                      <option key={u.id} value={u.id}>{u.name}</option>
-                    ))}
-                  </select>
+               <div className="flex items-center gap-2">
+                 <div className="relative flex-1">
+                   <UserIcon className="absolute left-2 top-2 h-3.5 w-3.5 text-gray-400" />
+                   <select
+                      value={editedTask.assigneeId || ''}
+                      onChange={(e) => handleChange('assigneeId', e.target.value)}
+                      className="block w-full pl-8 rounded-lg border-gray-200 shadow-sm focus:border-blue-900 focus:ring-blue-900 text-sm py-1.5 bg-white/60"
+                    >
+                      <option value="">Unassigned</option>
+                      {users.map(u => (
+                        <option key={u.id} value={u.id}>{u.name}</option>
+                      ))}
+                    </select>
+                 </div>
+                 {editedTask.assigneeId && (
+                   <button 
+                     onClick={handleNotifyAssignee} 
+                     disabled={isSendingEmail}
+                     className="p-1.5 bg-blue-50 hover:bg-blue-100 text-blue-900 rounded-md border border-blue-200 transition-colors"
+                     title="Notify via Email"
+                   >
+                     {isSendingEmail ? (
+                       <div className="w-4 h-4 border-2 border-blue-900 border-t-transparent rounded-full animate-spin" />
+                     ) : (
+                       <Mail className="w-4 h-4" />
+                     )}
+                   </button>
+                 )}
                </div>
              </div>
              <div className="flex flex-col min-w-[160px]">
@@ -327,8 +372,14 @@ export const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({
                      {editedTask.subtasks.map((subtask, index) => (
                         <div 
                           key={subtask.id} 
-                          className="flex items-center gap-3 p-3 rounded-lg border border-transparent hover:border-white/50 hover:bg-white/40 transition-all group"
-                          style={{ animation: `slideIn 0.3s ease-out ${index * 0.05}s` }}
+                          className={`flex items-center gap-3 p-3 rounded-lg border transition-all duration-200 group ${
+                             subtask.completed ? 'bg-gray-50/50 border-gray-100/50 opacity-75' : 'border-transparent hover:border-white/50 hover:bg-white/40'
+                          }`}
+                          style={{ 
+                             animation: toggledSubtaskId === subtask.id 
+                               ? 'subtaskPulse 0.3s ease-in-out' 
+                               : `slideIn 0.3s ease-out ${index * 0.05}s`
+                          }}
                         >
                            <input
                              type="checkbox"
