@@ -104,7 +104,18 @@
 </script>
 </head>
   <body>
-    <div id="root"></div>
+    <!-- The root element where React will mount -->
+    <div id="root">
+      <!-- Simple fallback content in case React fails to load or takes time -->
+      <div style="display:flex;justify-content:center;align-items:center;height:100vh;color:#002855;font-weight:bold;">
+        Loading Project Management System...
+      </div>
+    </div>
+
+    <!-- 
+      FIX: This script tag is required for Vite/React to initialize.
+      It points to the main entry file (index.tsx) which calls ReactDOM.createRoot().
+    -->
     <script type="module" src="/index.tsx"></script>
   </body>
 </html>
