@@ -32,31 +32,31 @@ export const ChatWidget: React.FC = () => {
     <div className="fixed bottom-6 right-6 z-40 flex flex-col items-end pointer-events-none">
       {/* Chat Window */}
       {isOpen && (
-        <div className="mb-4 w-80 sm:w-96 bg-white rounded-2xl shadow-2xl border border-gray-200 pointer-events-auto flex flex-col overflow-hidden transition-all duration-200 ease-in-out">
+        <div className="mb-4 w-80 sm:w-96 bg-white/80 backdrop-blur-2xl rounded-2xl shadow-2xl border border-white/60 pointer-events-auto flex flex-col overflow-hidden transition-all duration-200 ease-in-out">
           {/* Header */}
-          <div className="bg-blue-900 p-4 flex items-center justify-between text-white">
+          <div className="bg-blue-900/90 backdrop-blur-sm p-4 flex items-center justify-between text-white shadow-sm">
             <div>
               <h3 className="font-semibold text-sm">
                 {currentProject ? currentProject.name : 'Select a Project'}
               </h3>
-              <p className="text-xs text-blue-200">Team Chat</p>
+              <p className="text-xs text-blue-100">Team Chat</p>
             </div>
             <button 
               onClick={() => setIsOpen(false)}
-              className="text-blue-100 hover:text-white transition-colors"
+              className="text-blue-100 hover:text-white transition-colors p-1 hover:bg-white/20 rounded-full"
             >
               <X className="w-5 h-5" />
             </button>
           </div>
 
           {/* Messages Area */}
-          <div className="flex-1 h-80 overflow-y-auto p-4 bg-gray-50 space-y-4">
+          <div className="flex-1 h-80 overflow-y-auto p-4 bg-transparent space-y-4 scrollbar-thin">
             {!currentProject ? (
-              <div className="h-full flex items-center justify-center text-gray-400 text-sm text-center">
+              <div className="h-full flex items-center justify-center text-gray-500 text-sm text-center font-medium">
                 Please select a project from the sidebar to start chatting.
               </div>
             ) : currentProject.chatMessages.length === 0 ? (
-              <div className="h-full flex items-center justify-center text-gray-400 text-sm text-center">
+              <div className="h-full flex items-center justify-center text-gray-500 text-sm text-center font-medium">
                 No messages yet. Say hi! 👋
               </div>
             ) : (
@@ -69,18 +69,18 @@ export const ChatWidget: React.FC = () => {
                     <img 
                       src={sender?.avatarUrl} 
                       alt={sender?.name} 
-                      className="w-8 h-8 rounded-full bg-gray-200 flex-shrink-0"
+                      className="w-8 h-8 rounded-full bg-white flex-shrink-0 border border-white/50 shadow-sm"
                       title={sender?.name}
                     />
                     <div className={`flex flex-col max-w-[75%] ${isMe ? 'items-end' : 'items-start'}`}>
-                      <div className={`px-3 py-2 rounded-2xl text-sm ${
+                      <div className={`px-3 py-2 rounded-2xl text-sm shadow-sm backdrop-blur-md ${
                         isMe 
-                          ? 'bg-blue-900 text-white rounded-br-none' 
-                          : 'bg-white text-gray-800 border border-gray-200 rounded-bl-none'
+                          ? 'bg-blue-600 text-white rounded-br-none' 
+                          : 'bg-white/60 text-gray-800 border border-white/50 rounded-bl-none'
                       }`}>
                         {msg.content}
                       </div>
-                      <span className="text-[10px] text-gray-400 mt-1 px-1">
+                      <span className="text-[10px] text-gray-500 mt-1 px-1 font-medium">
                         {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </span>
                     </div>
@@ -92,7 +92,7 @@ export const ChatWidget: React.FC = () => {
           </div>
 
           {/* Input Area */}
-          <div className="p-3 bg-white border-t border-gray-100">
+          <div className="p-3 bg-white/40 border-t border-white/50 backdrop-blur-md">
             <form onSubmit={handleSend} className="flex gap-2">
               <input
                 type="text"
@@ -100,12 +100,12 @@ export const ChatWidget: React.FC = () => {
                 onChange={(e) => setMessage(e.target.value)}
                 disabled={!currentProject}
                 placeholder={currentProject ? "Type a message..." : "Select a project..."}
-                className="flex-1 px-4 py-2 text-sm bg-gray-50 border border-transparent rounded-full focus:bg-white focus:border-blue-300 focus:ring-0 transition-colors outline-none disabled:opacity-50"
+                className="flex-1 px-4 py-2 text-sm bg-white/60 border border-white/40 rounded-full focus:bg-white/90 focus:border-blue-300 focus:ring-0 transition-colors outline-none disabled:opacity-50 shadow-inner placeholder-gray-500"
               />
               <button
                 type="submit"
                 disabled={!message.trim() || !currentProject}
-                className="p-2 bg-blue-900 text-white rounded-full hover:bg-blue-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex-shrink-0"
+                className="p-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex-shrink-0 shadow-md"
               >
                 <Send className="w-4 h-4" />
               </button>
@@ -117,7 +117,7 @@ export const ChatWidget: React.FC = () => {
       {/* Toggle Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="pointer-events-auto p-4 bg-blue-900 text-white rounded-full shadow-lg hover:bg-blue-800 transition-transform hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-900"
+        className="pointer-events-auto p-4 bg-blue-600 text-white rounded-full shadow-xl hover:bg-blue-700 transition-transform hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 backdrop-blur-sm"
       >
         {isOpen ? <X className="w-6 h-6" /> : <MessageSquare className="w-6 h-6" />}
       </button>

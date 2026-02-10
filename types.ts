@@ -31,6 +31,13 @@ export interface ChatMessage {
   timestamp: string;
 }
 
+export interface Comment {
+  id: string;
+  userId: string;
+  content: string;
+  timestamp: string;
+}
+
 export interface Task {
   id: string;
   title: string;
@@ -41,6 +48,8 @@ export interface Task {
   dueDate?: string;
   subtasks: SubTask[];
   dependencies?: string[]; // IDs of tasks that must be completed before this task
+  order: number; // Position for sorting within the column
+  comments: Comment[];
 }
 
 export interface SubTask {
@@ -63,4 +72,14 @@ export interface Project {
 export interface NotificationDraft {
   subject: string;
   body: string;
+}
+
+export interface TaskTemplate {
+  id: string;
+  name: string;
+  title: string;
+  description: string;
+  priority: Priority;
+  subtasks: { title: string; completed: boolean }[];
+  dependencies?: string[];
 }

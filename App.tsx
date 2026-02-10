@@ -4,11 +4,12 @@ import { Login } from './pages/Login';
 import { Dashboard } from './pages/Dashboard';
 import { ProjectBoard } from './pages/ProjectBoard';
 import { CalendarView } from './pages/CalendarView';
+import { Profile } from './pages/Profile';
 import { Layout } from './components/Layout';
 
 const AppContent: React.FC = () => {
   const { currentUser } = useProject();
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'projects' | 'calendar'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'projects' | 'calendar' | 'profile'>('dashboard');
 
   if (!currentUser) {
     return <Login />;
@@ -20,6 +21,8 @@ const AppContent: React.FC = () => {
         <Dashboard />
       ) : activeTab === 'calendar' ? (
         <CalendarView />
+      ) : activeTab === 'profile' ? (
+        <Profile />
       ) : (
         <ProjectBoard />
       )}

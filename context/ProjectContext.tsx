@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { Project, User, Task, TaskStatus, Priority, Role, ChatMessage } from '../types';
+import { Project, User, Task, TaskStatus, Priority, Role, ChatMessage, TaskTemplate } from '../types';
 
 interface ProjectContextType {
   currentUser: User | null;
@@ -10,9 +10,14 @@ interface ProjectContextType {
   setCurrentProject: (id: string) => void;
   addTask: (projectId: string, task: Task) => void;
   updateTask: (projectId: string, task: Task) => void;
+  reorderTasks: (projectId: string, tasks: Task[]) => void;
   users: User[];
   getUserRole: (projectId: string) => Role | null;
   sendChatMessage: (projectId: string, content: string) => void;
+  updateUserProfile: (updates: Partial<User>) => void;
+  taskTemplates: TaskTemplate[];
+  addTemplate: (template: Omit<TaskTemplate, 'id'>) => void;
+  deleteTemplate: (id: string) => void;
 }
 
 const ProjectContext = createContext<ProjectContextType | undefined>(undefined);
@@ -48,7 +53,11 @@ const INITIAL_PROJECTS: Project[] = [
           { id: 'st1', title: 'Hero section', completed: true },
           { id: 'st2', title: 'Footer', completed: true },
         ],
-        dependencies: []
+        dependencies: [],
+        order: 0,
+        comments: [
+          { id: 'c1', userId: 'u2', content: 'These look great! Can we try a version with dark mode?', timestamp: new Date(Date.now() - 86400000 * 5).toISOString() }
+        ]
       },
       {
         id: 't2',
@@ -59,7 +68,9 @@ const INITIAL_PROJECTS: Project[] = [
         assigneeId: 'u2',
         dueDate: '2023-11-20',
         subtasks: [],
-        dependencies: []
+        dependencies: [],
+        order: 0,
+        comments: []
       },
       {
         id: 't3',
@@ -70,7 +81,9 @@ const INITIAL_PROJECTS: Project[] = [
         assigneeId: 'u2',
         dueDate: '2023-11-25',
         subtasks: [],
-        dependencies: ['t1'] // Depends on Design Homepage Mockups
+        dependencies: ['t1'], // Depends on Design Homepage Mockups
+        order: 1,
+        comments: []
       },
       {
         id: 't4',
@@ -81,7 +94,9 @@ const INITIAL_PROJECTS: Project[] = [
         assigneeId: 'u3',
         dueDate: '2023-12-01',
         subtasks: [],
-        dependencies: ['t3'] // Depends on Frontend Implementation
+        dependencies: ['t3'], // Depends on Frontend Implementation
+        order: 2,
+        comments: []
       }
     ],
     chatMessages: [
@@ -104,13 +119,46 @@ const INITIAL_PROJECTS: Project[] = [
   }
 ];
 
+const INITIAL_TEMPLATES: TaskTemplate[] = [
+  {
+    id: 'tpl1',
+    name: 'Bug Report',
+    title: '[BUG] ',
+    description: '**Steps to reproduce:**\n1. \n2. \n\n**Expected behavior:**\n\n**Actual behavior:**',
+    priority: Priority.HIGH,
+    subtasks: [
+      { title: 'Verify bug', completed: false },
+      { title: 'Fix bug', completed: false },
+      { title: 'Add regression test', completed: false }
+    ],
+    dependencies: []
+  },
+  {
+    id: 'tpl2',
+    name: 'Feature Request',
+    title: '[FEAT] ',
+    description: 'User Story:\nAs a <user>, I want to <action>, so that <benefit>.\n\nAcceptance Criteria:\n- ',
+    priority: Priority.MEDIUM,
+    subtasks: [
+      { title: 'Design', completed: false },
+      { title: 'Implementation', completed: false },
+      { title: 'Testing', completed: false },
+      { title: 'Documentation', completed: false }
+    ],
+    dependencies: []
+  }
+];
+
 export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const [users, setUsers] = useState<User[]>(MOCK_USERS);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [projects, setProjects] = useState<Project[]>(INITIAL_PROJECTS);
   const [currentProjectId, setCurrentProjectId] = useState<string>('p1');
+  const [taskTemplates, setTaskTemplates] = useState<TaskTemplate[]>(INITIAL_TEMPLATES);
 
   const login = () => {
-    setCurrentUser(MOCK_USERS[0]); // Simulate Google Login (Alex - Admin)
+    // We'll grab the first user from the stateful 'users' array to ensure sync
+    setCurrentUser(users[0]); 
   };
 
   const logout = () => {
@@ -150,6 +198,19 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
     }));
   };
 
+  const reorderTasks = (projectId: string, updatedTasks: Task[]) => {
+    setProjects(prev => prev.map(p => {
+      if (p.id === projectId) {
+        const updates = new Map(updatedTasks.map(t => [t.id, t]));
+        return {
+          ...p,
+          tasks: p.tasks.map(t => updates.get(t.id) || t)
+        };
+      }
+      return p;
+    }));
+  };
+
   const sendChatMessage = (projectId: string, content: string) => {
     if (!currentUser) return;
     const newMessage: ChatMessage = {
@@ -167,6 +228,27 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
     }));
   };
 
+  const updateUserProfile = (updates: Partial<User>) => {
+    if (!currentUser) return;
+    
+    const updatedUser = { ...currentUser, ...updates };
+    
+    // Update current user state
+    setCurrentUser(updatedUser);
+    
+    // Update user in the global users list
+    setUsers(prev => prev.map(u => u.id === currentUser.id ? updatedUser : u));
+  };
+
+  const addTemplate = (template: Omit<TaskTemplate, 'id'>) => {
+    const newTemplate = { ...template, id: Math.random().toString(36).substr(2, 9) };
+    setTaskTemplates(prev => [...prev, newTemplate]);
+  };
+
+  const deleteTemplate = (id: string) => {
+    setTaskTemplates(prev => prev.filter(t => t.id !== id));
+  };
+
   return (
     <ProjectContext.Provider value={{
       currentUser,
@@ -177,9 +259,14 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
       setCurrentProject,
       addTask,
       updateTask,
-      users: MOCK_USERS,
+      reorderTasks,
+      users,
       getUserRole,
-      sendChatMessage
+      sendChatMessage,
+      updateUserProfile,
+      taskTemplates,
+      addTemplate,
+      deleteTemplate
     }}>
       {children}
     </ProjectContext.Provider>
